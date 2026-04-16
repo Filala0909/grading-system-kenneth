@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>IT Grading System</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #1e3c72, #2a5298, #4facfe);
+    margin: 0;
+    padding: 15px;
+}
+
+/* HEADER */
+.header {
+    text-align: center;
+    color: white;
+    margin-bottom: 15px;
+}
+
+.header h1 { margin: 0; }
+.header p { font-size: 13px; opacity: 0.8; }
+
+/* CARD */
+.container {
+    max-width: 1000px;
+    margin: auto;
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+/* FORM */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.form-grid.full { grid-template-columns: 1fr; }
+
+input {
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+input:focus {
+    border-color: #4facfe;
+    outline: none;
+}
+
+/* BUTTON */
+button {
+    padding: 12px;
+    width: 100%;
+    background: linear-gradient(135deg, #4facfe, #00c6ff);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+button:hover { opacity: 0.9; }
+
+/* SEARCH */
+.search-box {
+    margin-top: 15px;
+}
+
+.search-box input {
+    width: 100%;
+}
+
+/* SUMMARY */
+.summary {
+    margin-top: 10px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* TABLE */
+.table-container {
+    overflow-x: auto;
+    margin-top: 10px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 750px;
+}
+
+th {
+    background: #4facfe;
+    color: white;
+}
+
+th, td {
+    padding: 8px;
+    text-align: center;
+}
+
+td {
+    border-bottom: 1px solid #ddd;
+}
+
+tr:hover { background: #f0f8ff; }
+
+.pass { color: green; font-weight: bold; }
+.fail { color: red; font-weight: bold; }
+
+/* DELETE BUTTON */
+.delete-btn {
+    background: #ff4d4d;
+    border: none;
+    padding: 5px 8px;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.delete-btn:hover { background: #cc0000; }
+
+/* MOBILE */
+@media(max-width:600px){
+    .form-grid { grid-template-columns: 1fr; }
+}
+    .analytics {
+    margin-top: 20px;
+}
+
+.cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px,1fr));
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.card {
+    background: #e6f2ff;
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.insight {
+    margin-top: 10px;
+    font-weight: bold;
+    text-align: center;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+    <h1>IT Grading System</h1>
+    <p>Student Performance Monitoring System</p>
+</div>
+
+<div class="container">
+
+    <!-- FORM -->
+    <div class="form-grid">
+        <input type="text" id="name" placeholder="Student Name">
+        <input type="text" id="section" placeholder="Section">
+    </div>
+
+    <div class="form-grid">
+        <input type="number" id="quiz" placeholder="Quiz (20%)">
+        <input type="number" id="lab" placeholder="Lab (30%)">
+        <input type="number" id="assign" placeholder="Assignment (10%)">
+        <input type="number" id="attendance" placeholder="Attendance (10%)">
+        <input type="number" id="exam" placeholder="Exam (30%)">
+    </div>
+<div class="analytics">
+    <h3>Analytics Dashboard</h3>
+
+    <div class="cards">
+        <div class="card">👨‍🎓 Students: <span id="totalStudents">0</span></div>
+        <div class="card">✅ Passed: <span id="passedCount">0</span></div>
+        <div class="card">❌ Failed: <span id="failedCount">0</span></div>
+        <div class="card">🏆 Highest: <span id="highest">0</span></div>
+        <div class="card">📉 Lowest: <span id="lowest">0</span></div>
+    </div>
+
+    <canvas id="chart" height="120"></canvas>
+
+    <div class="insight" id="insight"></div>
+</div>
+    <button onclick="computeGrade()">Submit Grades</button>
+
+    <!-- SEARCH -->
+    <div class="search-box">
+        <input type="text" id="search" placeholder="Search student..." onkeyup="searchTable()">
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="summary" id="summary"></div>
+
+    <!-- TABLE -->
+    <div class="table-container">
+        <table id="gradeTable">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Section</th>
+                    <th>Total</th>
+                    <th>Equivalent</th>
+                    <th>Remarks</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+let data = JSON.parse(localStorage.getItem("grades")) || [];
+
+function saveData() {
+    localStorage.setItem("grades", JSON.stringify(data));
+}
+
+function computeGrade() {
+    let name = document.getElementById("name").value.trim();
+    let section = document.getElementById("section").value.trim();
+
+    if (!name || !section) {
+        alert("Please enter Name and Section");
+        return;
+    }
+
+    let quiz = +document.getElementById("quiz").value || 0;
+    let lab = +document.getElementById("lab").value || 0;
+    let assign = +document.getElementById("assign").value || 0;
+    let attendance = +document.getElementById("attendance").value || 0;
+    let exam = +document.getElementById("exam").value || 0;
+
+    let total = quiz*0.2 + lab*0.3 + assign*0.1 + attendance*0.1 + exam*0.3;
+
+    let eq = total>=90?"1.0":total>=85?"1.25":total>=80?"1.5":total>=75?"2.0":total>=70?"2.5":total>=65?"3.0":"5.0";
+    let remarks = total>=75?"PASSED":"FAILED";
+
+    data.push({name, section, total, eq, remarks});
+    saveData();
+    renderTable();
+}
+function renderTable() {
+    let tbody = document.querySelector("tbody");
+    tbody.innerHTML = "";
+
+    let totalSum = 0;
+    let passed = 0;
+    let failed = 0;
+    let highest = 0;
+    let lowest = 100;
+
+    data.forEach((item, index) => {
+        totalSum += item.total;
+
+        if (item.remarks === "PASSED") passed++;
+        else failed++;
+
+        if (item.total > highest) highest = item.total;
+        if (item.total < lowest) lowest = item.total;
+
+        tbody.innerHTML += `
+        <tr>
+            <td>${item.name}</td>
+            <td>${item.section}</td>
+            <td>${item.total.toFixed(2)}</td>
+            <td>${item.eq}</td>
+            <td class="${item.remarks==='PASSED'?'pass':'fail'}">${item.remarks}</td>
+            <td><button class="delete-btn" onclick="deleteRow(${index})">Delete</button></td>
+        </tr>`;
+    });
+
+    let avg = data.length ? (totalSum / data.length).toFixed(2) : 0;
+
+    document.getElementById("summary").innerText = "Class Average: " + avg;
+
+    // ANALYTICS
+    document.getElementById("totalStudents").innerText = data.length;
+    document.getElementById("passedCount").innerText = passed;
+    document.getElementById("failedCount").innerText = failed;
+    document.getElementById("highest").innerText = highest.toFixed(2);
+    document.getElementById("lowest").innerText = data.length ? lowest.toFixed(2) : 0;
+
+    generateInsight(avg);
+    drawChart(passed, failed);
+}
+    function generateInsight(avg) {
+    let insight = "";
+
+    if (avg >= 85) insight = "Excellent class performance 🎉";
+    else if (avg >= 75) insight = "Good performance 👍";
+    else insight = "Needs improvement ⚠️";
+
+    document.getElementById("insight").innerText = insight;
+}
+    function drawChart(passed, failed) {
+    let canvas = document.getElementById("chart");
+    let ctx = canvas.getContext("2d");
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    let max = Math.max(passed, failed, 1);
+
+    let barWidth = 100;
+    let gap = 50;
+
+    // Passed bar
+    let passedHeight = (passed / max) * 100;
+    ctx.fillStyle = "#28a745";
+    ctx.fillRect(50, 120 - passedHeight, barWidth, passedHeight);
+    ctx.fillText("Passed", 70, 115);
+
+    // Failed bar
+    let failedHeight = (failed / max) * 100;
+    ctx.fillStyle = "#dc3545";
+    ctx.fillRect(200, 120 - failedHeight, barWidth, failedHeight);
+    ctx.fillText("Failed", 220, 115);
+}
+
+function deleteRow(index) {
+    data.splice(index,1);
+    saveData();
+    renderTable();
+}
+
+function searchTable() {
+    let value = document.getElementById("search").value.toLowerCase();
+    let rows = document.querySelectorAll("tbody tr");
+
+    rows.forEach(row => {
+        row.style.display = row.innerText.toLowerCase().includes(value) ? "" : "none";
+    });
+}
+
+renderTable();
+</script>
+
+</body>
+</html>
